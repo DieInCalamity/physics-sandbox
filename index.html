@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Physics Sandbox</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; background: #f0f0f0; }
+    #ui, #instructions, #langSelect {
+      position: fixed;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      z-index: 10;
+    }
+    #ui {
+      top: 10px;
+      right: 10px;
+    }
+    #langSelect {
+      top: 10px;
+      left: 10px;
+    }
+    #instructions {
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      color: black;
+    }
+    #contextMenu {
+      position: absolute;
+      display: none;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 1000;
+      border-radius: 6px;
+    }
+    #contextMenu button {
+      display: block;
+      width: 100%;
+      padding: 5px 10px;
+      text-align: left;
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+    #contextMenu button:hover {
+      background: #eee;
+    }
+    #explosionSlider {
+      width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div id="langSelect">
+    <label for="language">Language:</label>
+    <select id="language">
+      <option value="en" selected>English</option>
+      <option value="ru">Русский</option>
+    </select>
+  </div>
+
+  <div id="ui">
+    <label for="shapeSelect" id="shapeLabel">Shape:</label>
+    <select id="shapeSelect">
+      <option value="square">Square</option>
+      <option value="circle">Circle</option>
+      <option value="triangle">Triangle</option>
+      <option value="wall">Brick Wall</option>
+      <option value="weight">Weight</option>
+      <option value="explosion">💥 Explosion</option>
+    </select>
+    <br />
+    <label for="explosionSlider" id="explosionLabel">Explosion Strength:</label>
+    <input type="range" id="explosionSlider" min="0.01" max="0.2" step="0.01" value="0.05">
+  </div>
+
+  <div id="instructions">
+    <strong id="controlsTitle">Controls:</strong><br>
+    T - Place object<br>
+    Right Click - Open object menu<br>
+    Left Click - Move object<br>
+    A/D or Mouse Wheel - Rotate object<br>
+    Z - Undo last object<br>
+    C - Clear map<br>
+    Y (on 2 objects) - Connect with rope<br>
+  </div>
+
+  <div id="contextMenu">
+    <button id="deleteBtn">Delete</button>
+    <button id="freezeBtn">Freeze</button>
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        shapeLabel: "Shape:",
+        explosionLabel: "Explosion Strength:",
+        controlsTitle: "Controls:",
+        controlsText: `T - Place object<br>
+Right Click - Open object menu<br>
+Left Click - Move object<br>
+A/D or Mouse Wheel - Rotate object<br>
+Z - Undo last object<br>
+C - Clear map<br>
+Y (on 2 objects) - Connect with rope`,
+        deleteBtn: "Delete",
+        freeze: "Freeze",
+        unfreeze: "Unfreeze",
+        shapeOptions: ["Square", "Circle", "Triangle", "Brick Wall", "Weight", "💥 Explosion"]
+      },
+      ru: {
+        shapeLabel: "Фигура:",
+        explosionLabel: "Сила взрыва:",
+        controlsTitle: "Управление:",
+        controlsText: `T - поставить объект<br>
+ПКМ - открыть меню объекта<br>
+ЛКМ - переместить объект<br>
+A/D или колесо мыши - вращение объекта<br>
+Z - отменить последний объект<br>
+C - очистить карту<br>
+Y (по 2 объектам) - соединить канатом`,
+        deleteBtn: "Удалить",
+        freeze: "Заморозить",
+        unfreeze: "Разморозить",
+        shapeOptions: ["Квадрат", "Круг", "Треугольник", "Кирпичная стена", "Гиря", "💥 Взрыв"]
+      }
+    };
+
+    const langSelect = document.getElementById("language");
+    langSelect.addEventListener("change", () => {
+      const lang = langSelect.value;
+      const t = translations[lang];
+
+      document.getElementById("shapeLabel").textContent = t.shapeLabel;
+      document.getElementById("explosionLabel").textContent = t.explosionLabel;
+      document.getElementById("controlsTitle").textContent = t.controlsTitle;
+      document.getElementById("instructions").innerHTML = `<strong>${t.controlsTitle}</strong><br>${t.controlsText}`;
+      document.getElementById("deleteBtn").textContent = t.deleteBtn;
+      document.getElementById("freezeBtn").textContent = selectedBody && selectedBody.isStatic ? t.unfreeze : t.freeze;
+
+      const shapeSelect = document.getElementById("shapeSelect");
+      [...shapeSelect.options].forEach((opt, i) => {
+        opt.textContent = t.shapeOptions[i];
+      });
+    });
+  </script>
+
+  <!-- Matter.js и основной код игры остаются без изменений -->
+</body>
+</html>
