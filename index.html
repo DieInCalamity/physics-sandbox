@@ -151,6 +151,222 @@ Y (по 2 объектам) - соединить канатом`,
     });
   </script>
 
-  <!-- Matter.js и основной код игры остаются без изменений -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    const {
+      Engine, Render, Runner, World, Bodies, Body, Mouse, MouseConstraint,
+      Events, Composite, Vertices, Query, Constraint, Vector
+    } = Matter;
+
+    const engine = Engine.create();
+    const world = engine.world;
+
+    const render = Render.create({
+      element: document.body,
+      engine: engine,
+      options: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        wireframes: false,
+        background: '#e0e0e0'
+      }
+    });
+
+    Render.run(render);
+    Runner.run(Runner.create(), engine);
+
+    const blocks = [];
+    const constraints = [];
+    const shapeSelect = document.getElementById("shapeSelect");
+    const contextMenu = document.getElementById("contextMenu");
+    const deleteBtn = document.getElementById("deleteBtn");
+    const freezeBtn = document.getElementById("freezeBtn");
+    const explosionSlider = document.getElementById("explosionSlider");
+
+    let selectedBody = null;
+    let selectedGrabbedBody = null;
+    let ropeSelection = [];
+    let mousePos = { x: 0, y: 0 };
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    World.add(world, [
+      Bodies.rectangle(width / 2, height + 25, width, 50, { isStatic: true }),
+      Bodies.rectangle(-25, height / 2, 50, height, { isStatic: true }),
+      Bodies.rectangle(width + 25, height / 2, 50, height, { isStatic: true }),
+      Bodies.rectangle(width / 2, -25, width, 50, { isStatic: true }),
+    ]);
+
+    function addShape(type, x, y) {
+      let body;
+
+      if (type === "square") {
+        body = Bodies.rectangle(x, y, 60, 60);
+      } else if (type === "circle") {
+        body = Bodies.circle(x, y, 30);
+      } else if (type === "triangle") {
+        const size = 60;
+        const verts = Vertices.fromPath(`0 0 ${size} 0 ${size / 2} ${-Math.sqrt(3)/2 * size}`);
+        body = Bodies.fromVertices(x, y, verts, { restitution: 0.3 });
+      } else if (type === "wall") {
+        const bricks = [];
+        const rows = 4, cols = 6;
+        const bw = 40, bh = 20;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const brick = Bodies.rectangle(x + c * bw, y + r * bh, bw - 2, bh - 2, {
+              density: 0.005,
+              friction: 0.5,
+              render: { fillStyle: "#B22222" }
+            });
+            bricks.push(brick);
+            blocks.push(brick);
+          }
+        }
+        World.add(world, bricks);
+        return;
+      } else if (type === "weight") {
+        body = Bodies.rectangle(x, y, 60, 60, {
+          density: 0.05,
+          render: { fillStyle: "#444" }
+        });
+      } else if (type === "explosion") {
+        triggerExplosion(x, y);
+        return;
+      }
+
+      if (body) {
+        body.collisionFilter.category = 0x0001;
+        blocks.push(body);
+        World.add(world, body);
+      }
+    }
+
+    function triggerExplosion(x, y) {
+      const radius = 150;
+      const force = parseFloat(explosionSlider.value);
+      const affected = Query.region(blocks, {
+        min: { x: x - radius, y: y - radius },
+        max: { x: x + radius, y: y + radius }
+      });
+
+      for (let body of affected) {
+        const dx = body.position.x - x;
+        const dy = body.position.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < radius && dist > 0) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+          Body.applyForce(body, body.position, {
+            x: nx * force,
+            y: ny * force
+          });
+        }
+      }
+    }
+
+    window.addEventListener("keydown", e => {
+      const key = e.key.toLowerCase();
+      if (key === "t") {
+        addShape(shapeSelect.value, mousePos.x, mousePos.y);
+      } else if (key === "z" && blocks.length > 0) {
+        const last = blocks.pop();
+        World.remove(world, last);
+      } else if (key === "c") {
+        [...blocks, ...constraints].forEach(b => World.remove(world, b));
+        blocks.length = 0;
+        constraints.length = 0;
+      } else if (key === "y") {
+        const found = Query.point(blocks, mousePos);
+        if (found.length > 0) {
+          ropeSelection.push(found[0]);
+          if (ropeSelection.length === 2) {
+            const [bodyA, bodyB] = ropeSelection;
+            const length = Vector.magnitude(Vector.sub(bodyA.position, bodyB.position));
+            const rope = Constraint.create({
+              bodyA,
+              bodyB,
+              length: length,
+              stiffness: 0.9,
+              render: { strokeStyle: '#333' }
+            });
+            constraints.push(rope);
+            World.add(world, rope);
+            ropeSelection = [];
+          }
+        }
+      }
+
+      if (selectedGrabbedBody) {
+        if (key === "a") Body.rotate(selectedGrabbedBody, -0.1);
+        if (key === "d") Body.rotate(selectedGrabbedBody, 0.1);
+      }
+    });
+
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      },
+      collisionFilter: { mask: 0x0001 }
+    });
+    render.mouse = mouse;
+    World.add(world, mouseConstraint);
+
+    Events.on(mouseConstraint, "mousemove", e => {
+      mousePos = e.mouse.position;
+    });
+    Events.on(mouseConstraint, "startdrag", e => selectedGrabbedBody = e.body);
+    Events.on(mouseConstraint, "enddrag", () => selectedGrabbedBody = null);
+
+    window.addEventListener("wheel", e => {
+      if (selectedGrabbedBody) {
+        Body.rotate(selectedGrabbedBody, e.deltaY < 0 ? -0.1 : 0.1);
+      }
+    });
+
+    window.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      const found = Query.point(blocks, { x: e.clientX, y: e.clientY });
+      if (found.length > 0) {
+        selectedBody = found[0];
+        contextMenu.style.left = e.clientX + "px";
+        contextMenu.style.top = e.clientY + "px";
+        contextMenu.style.display = "block";
+
+        freezeBtn.textContent = selectedBody.isStatic ? "Разморозить" : "Заморозить";
+      } else {
+        contextMenu.style.display = "none";
+      }
+    });
+
+    window.addEventListener("click", () => {
+      contextMenu.style.display = "none";
+    });
+
+    deleteBtn.onclick = () => {
+      if (selectedBody) {
+        World.remove(world, selectedBody);
+        const index = blocks.indexOf(selectedBody);
+        if (index !== -1) blocks.splice(index, 1);
+        contextMenu.style.display = "none";
+      }
+    };
+
+    freezeBtn.onclick = () => {
+      if (selectedBody) {
+        Body.setStatic(selectedBody, !selectedBody.isStatic);
+        contextMenu.style.display = "none";
+      }
+    };
+
+    window.addEventListener("resize", () => {
+      render.canvas.width = window.innerWidth;
+      render.canvas.height = window.innerHeight;
+    });
+  </script>
 </body>
 </html>
