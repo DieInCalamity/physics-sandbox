@@ -26,7 +26,7 @@ You can place different shapes, connect them with ropes, and create explosions w
 
 ## How to Run
 
-Open `index.html` in any modern web browser (Chrome, Firefox, Edge).
+Open `index.html` in any modern web browser (Chrome, Firefox, Edge). Or go to https://dieincalamity.github.io/physics-sandbox/
 
 ## License
 
