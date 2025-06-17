@@ -42,4 +42,4 @@ See the [LICENSE](LICENSE) file for full details.
 
 ---
 
-Built with 💡 by **[DieInCalamity](https://github.com/DieInCalamity)**
+Made by **[DieInCalamity](https://github.com/DieInCalamity)**
